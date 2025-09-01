@@ -333,5 +333,5 @@ Este projeto está licenciado sob a Licença MIT.
 ## 10. Contato
 
 -   **Nome:** Fidêncio Vieira
--   **E-mail:** fidenciovieira@gmail.com
+-   **E-mail:** fidenciovieira@hotmail.com
 -   **GitHub:** [xsysyphus](https://github.com/xsysyphus)
