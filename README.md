@@ -14,6 +14,7 @@
 7.  [Testes e Qualidade de Código](#7-testes-e-qualidade-de-código)
 8.  [Como Contribuir](#8-como-contribuir)
 9.  [Licença](#9-licença)
+10. [Contato](#10-contato)
 
 ---
 
@@ -326,3 +327,11 @@ A segurança é um pilar fundamental desta arquitetura.
 ## 9. Licença
 
 Este projeto está licenciado sob a Licença MIT.
+
+---
+
+## 10. Contato
+
+-   **Nome:** Fidêncio Vieira
+-   **E-mail:** fidenciovieira@gmail.com
+-   **GitHub:** [xsysyphus](https://github.com/xsysyphus)
