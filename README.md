@@ -39,16 +39,24 @@ A arquitetura foi desenhada para garantir a separação de responsabilidades, se
 
 ### Diagrama da Arquitetura
 
-```mermaid
-graph TD
-    A[Usuário] --> B{Application Load Balancer};
-    B --> C{ECS Service};
-    C --> D[Task 1 (Container)];
-    C --> E[Task 2 (Container)];
-    C -- "Puxa imagem" --> F[Imagem Docker ECR];
-    G[Terraform] -- "Provisiona" --> B;
-    G -- "Provisiona" --> C;
-    G -- "Provisiona" --> F;
+```text
++-------------------+      +---------------------------+      +-----------------+
+|      Usuário      |----->|  Application Load Balancer  |----->|   ECS Service   |
++-------------------+      +---------------------------+      +-----------------+
+                                                                  |
+                                                                  |
+                                           +----------------------+----------------------+
+                                           |                                              |
+                                           v                                              v
+                                 +---------------------+                       +---------------------+
+                                 | Task 1 (Container)  |                       | Task 2 (Container)  |
+                                 +---------------------+                       +---------------------+
+
+
++-------------------+      +---------------------------+      +-----------------+
+|     Terraform     |----->|  (Provisiona Recursos AWS)  |----->|  ECR, ALB, ECS  |
++-------------------+      +---------------------------+      +-----------------+
+
 ```
 
 ### Tecnologias Utilizadas
