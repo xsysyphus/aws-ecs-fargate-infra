@@ -77,9 +77,9 @@ graph TD
     NLB -- Encaminha tráfego TCP --> NginxService
     ApiServiceDiscovery -- Resolve para --> ApiTask
 
-    style NLB fill:#f9f,stroke:#333,stroke-width:2px
-    style NginxContainer fill:#bbf,stroke:#333,stroke-width:2px
-    style WAF fill:#f00,stroke:#333,stroke-width:2px
+    style NLB fill:#lightblue,stroke:#333,stroke-width:2px
+    style NginxContainer fill:#lightgreen,stroke:#333,stroke-width:2px
+    style WAF fill:#orange,stroke:#333,stroke-width:2px
 ```
 
 ### Fluxo de Requisição
@@ -105,103 +105,39 @@ graph TD
 
 ---
 
-## Configuração do Ambiente
+## 3. Provisionamento da Infraestrutura (IaC)
 
-### Pré-requisitos
+Este projeto oferece suporte dual-stack para IaC. Escolha a ferramenta de sua preferência.
 
-Antes de começar, garanta que você tenha as seguintes ferramentas instaladas e configuradas:
+### Pré-requisitos Comuns
 
--   [AWS CLI](https://aws.amazon.com/cli/): Autenticado com permissões para criar os recursos necessários.
--   [Terraform](https://www.terraform.io/downloads.html): Versão `1.0.0` ou superior.
--   [Docker](https://www.docker.com/get-started): Para construir e enviar imagens para o ECR.
+-   [AWS CLI](https://aws.amazon.com/cli/): Autenticado com permissões de `AdministratorAccess` (ou equivalentes).
+-   [Docker](https://www.docker.com/get-started): Para build e push de imagens de contêiner.
 -   [Git](https://git-scm.com/): Para controle de versão.
 
-### Instalação
+### Opção 1: Terraform (Padrão)
 
-1.  **Clone o repositório:**
-    ```bash
-    git clone <URL_DO_SEU_REPOSITORIO>
-    cd aws-ecs-fargate-infra
-    ```
+Localizado no diretório `terraform/`.
 
-2.  **Configure as credenciais da AWS:**
-    Certifique-se de que suas credenciais da AWS estão configuradas corretamente. Você pode usar o comando `aws configure` ou definir as variáveis de ambiente:
-    ```bash
-    export AWS_ACCESS_KEY_ID="SUA_ACCESS_KEY"
-    export AWS_SECRET_ACCESS_KEY="SUA_SECRET_KEY"
-    export AWS_REGION="sua-regiao" # Ex: us-east-1
-    ```
+#### Pré-requisitos Adicionais
 
-### Variáveis de Ambiente
+-   [Terraform](https://www.terraform.io/downloads.html) >= `1.0.0`
 
-As configurações principais da infraestrutura são gerenciadas através do arquivo `terraform/variables.tf`. Você pode criar um arquivo `terraform.tfvars` para substituir os valores padrão sem modificar o código original.
+#### Estrutura dos Módulos
 
-**Exemplo de `terraform.tfvars`:**
+-   `main.tf`: Configuração do provider AWS.
+-   `network.tf`: Recursos de rede (VPC, Subnets, IGW, NAT Gateway).
+-   `security.tf`: Security Groups.
+-   `ecr.tf`: Repositórios ECR.
+-   `ecs.tf`: Cluster ECS, Task Definitions, Services e Service Discovery.
+-   `alb.tf`: Network Load Balancer e Target Group.
+-   `monitoring.tf`: CloudWatch Dashboard.
+-   `waf.tf`: Recursos do WAF (ver nota de segurança).
+-   `variables.tf` / `outputs.tf`: Entradas e saídas da infraestrutura.
 
-```hcl
-# terraform/terraform.tfvars
+#### Passos para o Deploy
 
-aws_region      = "us-east-1"
-project_name    = "meu-projeto"
-vpc_cidr        = "10.0.0.0/16"
-public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
-private_subnets = ["10.0.3.0/24", "10.0.4.0/24"]
-```
-
----
-
-## Pipeline CI/CD
-
-O processo de integração e entrega contínua é gerenciado por scripts localizados no diretório `scripts/`.
-
-### Etapas do Pipeline
-
-1.  **Build:** A imagem Docker da aplicação é construída.
-2.  **Push:** A imagem é enviada para o repositório ECR na AWS.
-3.  **Deploy:** O Terraform é executado para aplicar as mudanças na infraestrutura e atualizar o serviço ECS com a nova imagem.
-
-### Comandos de Deploy
-
-Para executar o deploy completo, utilize o script principal:
-
-```powershell
-# No Windows (PowerShell)
-.\scripts\deploy.ps1 -env "staging"
-
-# No Linux/macOS (Bash)
-./scripts/deploy.sh staging
-```
-
-O script `deploy_nginx_only.ps1` é específico para o Nginx e pode ser usado para atualizações que afetam apenas este componente.
-
-### Ferramentas
-
--   **PowerShell / Bash:** Para a orquestração do deploy.
--   **Docker:** Para o gerenciamento do ciclo de vida dos contêineres.
--   **Terraform:** Para o provisionamento da infraestrutura.
-
----
-
-## Gerenciamento de Infraestrutura
-
-A infraestrutura é totalmente gerenciada como código usando **Terraform**. Os arquivos de configuração estão no diretório `terraform/`.
-
-### Estrutura dos Arquivos Terraform
-
--   `main.tf`: Provedor AWS e configurações gerais.
--   `network.tf`: Definição da VPC, sub-redes, tabelas de rotas e gateways.
--   `security.tf`: Security Groups para controlar o tráfego.
--   `ecr.tf`: Criação do repositório ECR.
--   `ecs.tf`: Definição do cluster ECS, task definitions e serviços.
--   `alb.tf`: Configuração do Application Load Balancer.
--   `monitoring.tf`: Recursos de monitoramento (CloudWatch).
--   `waf.tf`: Configuração do Web Application Firewall.
--   `variables.tf`: Variáveis de entrada para customização.
--   `outputs.tf`: Saídas, como o DNS do Load Balancer.
-
-### Como Aplicar a Infraestrutura
-
-1.  **Navegue até o diretório do Terraform:**
+1.  **Navegue até o diretório:**
     ```bash
     cd terraform
     ```
@@ -211,135 +147,182 @@ A infraestrutura é totalmente gerenciada como código usando **Terraform**. Os 
     terraform init
     ```
 
-3.  **Planeje as mudanças:**
+3.  **(Opcional) Crie um arquivo `terraform.tfvars` para customizar as variáveis:**
+    ```hcl
+    # terraform/terraform.tfvars
+    aws_region   = "us-east-1"
+    project_name = "minha-api-prod"
+    ```
+
+4.  **Planeje e revise as mudanças:**
     ```bash
     terraform plan
     ```
 
-4.  **Aplique as mudanças:**
+5.  **Aplique a infraestrutura:**
     ```bash
-    terraform apply
+    terraform apply --auto-approve
+    ```
+
+### Opção 2: AWS CDK (Alternativa)
+
+Localizado no diretório `cdk/`.
+
+#### Pré-requisitos Adicionais
+
+-   [Node.js](https://nodejs.org/) >= `18.0`
+-   AWS CDK CLI: `npm install -g aws-cdk`
+
+#### Estrutura da Stack
+
+-   `app.ts`: Ponto de entrada da aplicação CDK.
+-   `lib/app-infra-stack.ts`: Definição de toda a stack de infraestrutura, contendo todos os recursos (VPC, ECS, NLB, etc.).
+
+#### Passos para o Deploy
+
+1.  **Instale as dependências e compile o projeto:**
+    ```bash
+    cd cdk
+    npm install
+    npm run build
+    ```
+
+2.  **Realize o Bootstrap do CDK (apenas na primeira vez por conta/região):**
+    ```bash
+    cdk bootstrap
+    ```
+
+3.  **Sintetize e verifique as diferenças:**
+    ```bash
+    cdk synth
+    cdk diff
+    ```
+
+4.  **Faça o deploy da stack:**
+    ```bash
+    # Use os parâmetros de contexto para customizar
+    cdk deploy --require-approval never \
+      -c projectName=minha-api-prod \
+      -c environment=prod
     ```
 
 ---
 
-## Monitoramento e Logs
+## 4. Pipeline de Deploy (CI/CD)
 
-### Ferramentas
+Os scripts no diretório `scripts/` simulam um pipeline de CI/CD para o deploy das imagens das aplicações nos serviços ECS provisionados.
 
--   **AWS CloudWatch:** É a ferramenta principal para coletar logs e métricas.
-    -   **Logs:** Os logs dos contêineres são enviados automaticamente para o CloudWatch Logs, organizados por grupos de logs.
-    -   **Métricas:** Métricas de uso de CPU, memória do serviço ECS, e o estado do ALB estão disponíveis no CloudWatch Metrics.
--   **AWS X-Ray (Opcional):** Pode ser integrado para rastreamento de requisições e análise de performance.
+### Processo de Deploy das Aplicações
 
-### Dashboards e Alertas
+1.  **Build:** Uma nova imagem Docker é construída a partir do código-fonte da aplicação (API ou Nginx).
+2.  **Tagging:** A imagem é tagueada com a URI do repositório ECR correspondente e a tag `latest`.
+3.  **Push:** A imagem é enviada para o Amazon ECR.
+4.  **Update do Serviço ECS:** O script força um novo deploy no serviço ECS (`force-new-deployment`). O ECS Agent em execução no Fargate detecta a nova imagem e substitui as tarefas antigas pelas novas de forma gradual (rolling update).
 
-Recomenda-se a criação de dashboards no CloudWatch para visualizar as principais métricas de saúde da aplicação em tempo real. Além disso, podem ser configurados alertas (Alarms) para notificar a equipe em caso de anomalias, como:
+### Execução via Scripts
 
--   Uso de CPU/memória acima de um limite.
--   Número excessivo de respostas de erro (HTTP 5xx) no ALB.
--   Health checks falhando.
+#### Script `deploy.sh` (Linux/macOS - Recomendado)
 
----
+Este script obtém dinamicamente os outputs do Terraform, evitando a necessidade de configurações manuais.
 
-## Segurança
-
-### Boas Práticas
-
--   **Princípio do Menor Privilégio:** As permissões IAM para os serviços e tarefas ECS são restritas ao mínimo necessário.
--   **Segredos:** Dados sensíveis, como senhas de banco de dados e chaves de API, devem ser gerenciados pelo **AWS Secrets Manager** ou **Parameter Store**, e não hard-coded.
--   **Rede:** A aplicação roda em sub-redes privadas, sem acesso direto da internet. O acesso é mediado pelo ALB em sub-redes públicas.
--   **Security Groups:** Atuam como um firewall virtual para controlar o tráfego de entrada e saída das tarefas ECS e do ALB.
-
-### Autenticação e Autorização
-
--   A autenticação de usuários na aplicação é de responsabilidade da própria aplicação.
--   Para acesso à infraestrutura AWS, utiliza-se o **IAM (Identity and Access Management)**, com políticas que definem quem pode fazer o quê.
-
-### Gerenciamento de Segredos
-
-Para injetar segredos nos contêineres de forma segura, utilize a integração do ECS com o AWS Secrets Manager.
-
-**Exemplo em uma Task Definition:**
-
-```json
-"secrets": [
-    {
-        "name": "DATABASE_PASSWORD",
-        "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:SECRET_NAME-XXXXXX"
-    }
-]
-```
-
----
-
-## Testes e Qualidade
-
-A qualidade do código é garantida através de uma suíte de testes automatizados e ferramentas de análise estática.
-
-### Testes Automatizados
-
--   **Testes Unitários:** Utilizamos [Jest](https://jestjs.io/) para testes unitários. Para executar os testes, rode o comando na raiz do projeto da aplicação:
-    ```bash
-    npm test
-    ```
-
--   **Testes de Integração:** Os testes de integração validam a interação entre os diferentes serviços e componentes da aplicação. Eles são executados com [Jest](https://jestjs.io/) e [Supertest](https://github.com/ladjs/supertest).
-    ```bash
-    npm run test:integration
-    ```
-
--   **Testes End-to-End (E2E):** Os fluxos completos do usuário são validados utilizando [Cypress](https://www.cypress.io/). Para abrir o executor de testes do Cypress:
-    ```bash
-    npm run cypress:open
-    ```
-
-### Cobertura de Código (Code Coverage)
-
-A cobertura de testes é gerada pelo Jest. Nosso objetivo é manter uma cobertura de no mínimo **80%**. Para gerar o relatório de cobertura, execute:
 ```bash
-npm test -- --coverage
+# Certifique-se de estar na raiz do projeto
+./scripts/deploy.sh
 ```
-O relatório detalhado estará disponível no diretório `coverage/`.
 
-### Linting
+#### Script `deploy.ps1` (Windows PowerShell)
 
--   **Código da Aplicação:** Usamos [ESLint](https://eslint.org/) para manter um padrão de código consistente e evitar erros comuns. Para verificar os arquivos:
+⚠️ **Atenção:** Este script requer a **configuração manual** das variáveis no início do arquivo. Preencha-as com os outputs do `terraform output` ou `cdk outputs`.
+
+```powershell
+# Execute a partir da raiz do projeto
+.\scripts\deploy.ps1
+```
+
+---
+
+## 5. Postura de Segurança (DevSecOps)
+
+A segurança é um pilar fundamental desta arquitetura.
+
+### Autenticação Mútua (mTLS)
+
+-   **Implementação:** O mTLS é imposto pelo Gateway Nginx. A configuração em `nginx/nginx.conf` (`ssl_verify_client optional`) permite que a verificação seja feita dentro de um bloco `location`, possibilitando a exposição de endpoints públicos (como `/health`) que não exigem certificado.
+-   **Geração de Certificados:** Utilize o script `nginx/gerar_certificados.sh` para criar uma CA privada e emitir certificados de servidor e cliente.
     ```bash
-    npm run lint
+    # Gere os certificados antes de construir a imagem do Nginx
+    # O Common Name deve ser o DNS do seu NLB ou um domínio customizado
+    ./nginx/gerar_certificados.sh seu-dominio.com
     ```
-    Para corrigir automaticamente os problemas:
+-   **Teste de Conexão:**
     ```bash
-    npm run lint:fix
+    # Use os certificados de cliente gerados para testar
+    curl --cert ./nginx/certs/cliente-....crt \
+         --key ./nginx/certs/cliente-....key \
+         -k https://<DNS_DO_SEU_NLB>/
     ```
 
--   **Terraform:** Para garantir a qualidade e a formatação do código de infraestrutura, utilizamos os comandos nativos do Terraform:
-    ```bash
-    # Formata o código
-    terraform fmt
+### Segurança de Rede (Zero Trust)
 
-    # Valida a sintaxe
+-   **Isolamento:** As tarefas ECS rodam em sub-redes privadas sem acesso direto à internet. A saída é controlada por um NAT Gateway.
+-   **Security Groups:** Atuam como firewalls stateful, controlando o tráfego com regras estritas:
+    -   **SG Nginx:** Permite tráfego de entrada apenas do NLB na porta 443.
+    -   **SG API:** Permite tráfego de entrada apenas do SG do Nginx na porta da aplicação (5000).
+
+### Web Application Firewall (WAF)
+
+-   **Status Atual:** Os recursos do `AWS WAFv2` são provisionados tanto pelo Terraform quanto pelo CDK.
+-   **🚧 Limitação Importante:** O **AWS WAF não pode ser associado a Network Load Balancers (NLBs)**, pois o WAF opera na camada 7 (HTTP/S) e o NLB na camada 4 (TCP).
+-   **Recomendação:** Se a proteção do WAF for um requisito mandatório (para inspeção de SQL Injection, XSS, etc.), a arquitetura deve ser modificada para utilizar um **Application Load Balancer (ALB)**. Um ALB permitiria a associação com o WAF, mas exigiria uma abordagem diferente para o mTLS (o ALB terminaria o TLS e encaminharia o tráfego para o Nginx, que poderia então fazer um novo handshake mTLS).
+
+### Gestão de Identidade e Acesso (IAM)
+
+-   **Princípio do Menor Privilégio:** A `ecs_task_execution_role` concede apenas as permissões essenciais para que o ECS Agent possa puxar imagens do ECR e enviar logs para o CloudWatch. Nenhuma permissão adicional é concedida por padrão.
+
+### Análise de Imagens (ECR Scan)
+
+-   A funcionalidade **Scan on push** está habilitada nos repositórios ECR. A cada `docker push`, o ECR automaticamente analisa a imagem em busca de vulnerabilidades conhecidas (CVEs), fornecendo um relatório de segurança.
+
+---
+
+## 6. Monitoramento e Observabilidade
+
+-   **CloudWatch Logs:** Todos os logs (`stdout`/`stderr`) dos contêineres Nginx e API são enviados para grupos de logs dedicados no CloudWatch, com uma política de retenção configurável (padrão: 7 dias).
+-   **CloudWatch Metrics:** Métricas de performance (CPU, Memória) dos serviços ECS, bem como métricas do NLB (Conexões Ativas, Hosts Saudáveis), são coletadas automaticamente.
+-   **CloudWatch Dashboard:** Um dashboard customizado é provisionado para centralizar a visualização das métricas mais críticas da infraestrutura e dos serviços, permitindo um monitoramento proativo.
+
+---
+
+## 7. Testes e Qualidade de Código
+
+### Validação da Infraestrutura
+
+-   **Terraform:** Utilize os comandos nativos para garantir a qualidade do código IaC.
+    ```bash
+    # Valida a sintaxe dos arquivos
     terraform validate
+
+    # Formata o código para seguir o padrão canônico
+    terraform fmt
     ```
+-   **CDK:** A compilação TypeScript (`npm run build`) e o linter (`npm run lint`, se configurado) garantem a qualidade do código.
+
+### Testes da Aplicação
+
+-   Os testes unitários, de integração e E2E são de responsabilidade do repositório da aplicação. Esta infraestrutura é agnóstica à aplicação, mas foi projetada para suportar um ciclo de vida de desenvolvimento moderno que inclua testes automatizados no pipeline de CI/CD antes do deploy.
 
 ---
 
-## Como Contribuir
+## 8. Como Contribuir
 
-Agradecemos o seu interesse em contribuir! Para garantir um processo eficiente, por favor, siga estas diretrizes:
-
-1.  **Faça um Fork** do repositório.
-2.  **Crie uma Nova Branch:** `git checkout -b feature/sua-feature`.
-3.  **Faça suas Alterações:** Siga as boas práticas de código e adicione testes, se aplicável.
-4.  **Envie um Pull Request (PR):** Descreva claramente as mudanças e o motivo.
-5.  Aguarde a revisão do código.
+1.  **Fork** este repositório.
+2.  Crie uma nova **Branch** (`git checkout -b feature/minha-feature`).
+3.  Faça suas alterações e **commit** (`git commit -m 'feat: Adiciona nova feature'`).
+4.  **Push** para a sua branch (`git push origin feature/minha-feature`).
+5.  Abra um **Pull Request**.
 
 ---
 
-## Licença e Contato
+## 9. Licença
 
-### Contato
-
--   **Nome do Mantenedor:** Fidêncio Vieira
--   **Email:** fidenciovieira@hotmail.com
--   **GitHub:** [xsysyphus](https://github.com/xsysyphus)
+Este projeto está licenciado sob a Licença MIT.
