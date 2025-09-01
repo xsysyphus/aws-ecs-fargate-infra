@@ -37,30 +37,18 @@ A arquitetura foi desenhada para garantir a separação de responsabilidades, se
 4.  As imagens Docker das aplicações são armazenadas de forma segura no **Amazon ECR (Elastic Container Registry)**.
 5.  Toda a infraestrutura é provisionada e gerenciada pelo **Terraform**.
 
-### Diagrama da Arquitetura (Exemplo)
+### Diagrama da Arquitetura
 
 ```mermaid
 graph TD
-    subgraph "Internet"
-        A[Usuário]
-    end
-
-    subgraph "AWS Cloud"
-        A --> B{Application Load Balancer};
-        B --> C{ECS Service};
-        C --> D[Task 1 (Container)];
-        C --> E[Task 2 (Container)];
-        subgraph "ECR"
-            F[Imagem Docker]
-        end
-        C -- "Puxa a imagem" --> F;
-    end
-
-    subgraph "Gerenciamento"
-       G[Terraform] -- "Provisiona" --> B;
-       G -- "Provisiona" --> C;
-       G -- "Provisiona" --> F;
-    end
+    A[Usuário] --> B{Application Load Balancer};
+    B --> C{ECS Service};
+    C --> D[Task 1 (Container)];
+    C --> E[Task 2 (Container)];
+    C -- "Puxa imagem" --> F[Imagem Docker ECR];
+    G[Terraform] -- "Provisiona" --> B;
+    G -- "Provisiona" --> C;
+    G -- "Provisiona" --> F;
 ```
 
 ### Tecnologias Utilizadas
