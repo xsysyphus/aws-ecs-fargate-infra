@@ -53,13 +53,13 @@ graph TD
         subgraph "ECR"
             F[Imagem Docker]
         end
-        C -- Puxa a imagem --> F;
+        C -- "Puxa a imagem" --> F;
     end
 
     subgraph "Gerenciamento"
-       G[Terraform] -- Provisiona --> B;
-       G -- Provisiona --> C;
-       G -- Provisiona --> F;
+       G[Terraform] -- "Provisiona" --> B;
+       G -- "Provisiona" --> C;
+       G -- "Provisiona" --> F;
     end
 ```
 
