@@ -1,0 +1,23 @@
+# Terraform files
+**/.terraform/*
+*.tfstate
+*.tfstate.*.backup
+
+# Ignore all .tfvars files, which are likely to contain sensitive data, such as
+# password, private keys, and other secrets. These should not be part of version
+# control as they are data specific to the environment and not part of the
+# infrastructure configuration.
+*.tfvars
+
+# Ignore crash log files
+crash.log
+crash.*.log
+
+# Ignore override files as they are usually specific to a particular environment.
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Include additional files that should be ignored in this repository
+# ...
