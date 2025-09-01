@@ -1,78 +1,107 @@
-# Infraestrutura para Aplicações em Contêineres com AWS ECS Fargate
+# Infraestrutura como Código para API Gateway com mTLS em AWS ECS Fargate
 
 ## Tabela de Conteúdo
 
-1. [Descrição do Projeto](#descrição-do-projeto)
-2. [Arquitetura](#arquitetura)
-3. [Configuração do Ambiente](#configuração-do-ambiente)
-4. [Pipeline CI/CD](#pipeline-cicd)
-5. [Gerenciamento de Infraestrutura](#gerenciamento-de-infraestrutura)
-6. [Monitoramento e Logs](#monitoramento-e-logs)
-7. [Segurança](#segurança)
-8. [Testes e Qualidade](#testes-e-qualidade)
-9. [Como Contribuir](#como-contribuir)
-10. [Licença e Contato](#licença-e-contato)
+1.  [Visão Geral](#1-visão-geral)
+2.  [Arquitetura de Referência](#2-arquitetura-de-referência)
+    *   [Diagrama da Arquitetura](#diagrama-da-arquitetura)
+    *   [Fluxo de Requisição](#fluxo-de-requisição)
+    *   [Componentes Principais](#componentes-principais)
+3.  [Provisionamento da Infraestrutura (IaC)](#3-provisionamento-da-infraestrutura-iac)
+4.  [Pipeline de Deploy (CI/CD)](#4-pipeline-de-deploy-cicd)
+5.  [Postura de Segurança (DevSecOps)](#5-postura-de-segurança-devsecops)
+6.  [Monitoramento e Observabilidade](#6-monitoramento-e-observabilidade)
+7.  [Testes e Qualidade de Código](#7-testes-e-qualidade-de-código)
+8.  [Como Contribuir](#8-como-contribuir)
+9.  [Licença](#9-licença)
 
 ---
 
-## Descrição do Projeto
+## 1. Visão Geral
 
-Este projeto tem como objetivo provisionar e gerenciar uma infraestrutura completa na AWS para hospedar aplicações em contêineres utilizando **Amazon ECS (Elastic Container Service)** com **Fargate**. A solução é projetada para ser escalável, segura e altamente disponível, automatizando o máximo de processos possível através de Infraestrutura como Código (IaC).
+Este projeto provisiona uma infraestrutura robusta, escalável e segura na AWS, projetada para hospedar aplicações em contêineres utilizando **Amazon ECS (Elastic Container Service)** com **Fargate**. A solução adota o padrão de **API Gateway** com um proxy Nginx para terminação de **mTLS (Mutual TLS)**, garantindo autenticação mútua e segura entre cliente e servidor.
 
-- **Objetivo:** Automatizar o deploy de uma infraestrutura robusta para aplicações conteinerizadas na AWS.
-- **Contexto:** Ideal para projetos que necessitam de um ambiente de nuvem moderno, sem o gerenciamento manual de servidores (serverless), com escalabilidade automática e resiliência.
-- **Público-alvo:** Desenvolvedores DevOps, engenheiros de infraestrutura e equipes de desenvolvimento que buscam uma forma padronizada e eficiente de publicar suas aplicações.
+A infraestrutura é inteiramente gerenciada como código (IaC), oferecendo duas implementações funcionalmente equivalentes: **Terraform** e **AWS CDK (Cloud Development Kit)**.
+
+-   **Objetivo Estratégico:** Automatizar o provisionamento de uma arquitetura cloud-native, segura e resiliente, seguindo as melhores práticas de DevSecOps.
+-   **Caso de Uso:** Ideal para APIs e microsserviços que exigem um alto nível de segurança, como sistemas financeiros (Open Banking), saúde (HealthTech) ou qualquer aplicação que processe dados sensíveis e necessite de autenticação de cliente baseada em certificados.
 
 ---
 
-## Arquitetura
+## 2. Arquitetura de Referência
 
-A arquitetura foi desenhada para garantir a separação de responsabilidades, segurança e escalabilidade.
-
-### Fluxo da Aplicação
-
-1.  O tráfego de usuários chega a um **Application Load Balancer (ALB)**, que distribui as requisições.
-2.  O ALB encaminha o tráfego para os contêineres da aplicação rodando em um cluster **ECS Fargate**.
-3.  O Fargate gerencia a execução dos contêineres, escalando a quantidade de tarefas (contêineres) conforme a demanda.
-4.  As imagens Docker das aplicações são armazenadas de forma segura no **Amazon ECR (Elastic Container Registry)**.
-5.  Toda a infraestrutura é provisionada e gerenciada pelo **Terraform**.
+A arquitetura foi desenhada com base nos princípios de segurança em camadas (defense-in-depth) e menor privilégio.
 
 ### Diagrama da Arquitetura
 
-```text
-+-------------------+      +---------------------------+      +-----------------+
-|      Usuário      |----->|  Application Load Balancer  |----->|   ECS Service   |
-+-------------------+      +---------------------------+      +-----------------+
-                                                                  |
-                                                                  |
-                                           +----------------------+----------------------+
-                                           |                                              |
-                                           v                                              v
-                                 +---------------------+                       +---------------------+
-                                 | Task 1 (Container)  |                       | Task 2 (Container)  |
-                                 +---------------------+                       +---------------------+
+```mermaid
+graph TD
+    subgraph "Internet"
+        Usuario[Cliente Autenticado com Certificado]
+    end
 
+    subgraph "AWS Cloud"
+        subgraph "Rede Pública (Public Subnets)"
+            NLB[Network Load Balancer <br> TCP Passthrough na porta 443]
+        end
 
-+-------------------+      +---------------------------+      +-----------------+
-|     Terraform     |----->|  (Provisiona Recursos AWS)  |----->|  ECR, ALB, ECS  |
-+-------------------+      +---------------------------+      +-----------------+
+        subgraph "Rede Privada (Private Subnets)"
+            subgraph "ECS Fargate Cluster"
+                NginxService[ECS Service: Nginx Gateway <br> 2+ Tarefas]
+                ApiService[ECS Service: API <br> 2+ Tarefas]
+                
+                NginxTask[Tarefa Fargate: Nginx] -- proxy_pass --> ApiServiceDiscovery{Service Discovery <br> api.minha-api.local}
+                ApiTask[Tarefa Fargate: API]
 
+                subgraph NginxTask
+                    NginxContainer[Contêiner Nginx <br> Terminação mTLS]
+                end
+                
+                subgraph ApiTask
+                    ApiContainer[Contêiner da Aplicação]
+                end
+
+                NginxService --> NginxTask
+                ApiService --> ApiTask
+            end
+        end
+
+        subgraph "Outros Serviços"
+            ECR[ECR: Repositórios de Imagens]
+            CloudWatch[CloudWatch: Logs, Métricas e Dashboard]
+            WAF[WAFv2 <br> 🚧 Não associado ao NLB]
+        end
+    end
+
+    Usuario -- Certificado Cliente --> NLB
+    NLB -- Encaminha tráfego TCP --> NginxService
+    ApiServiceDiscovery -- Resolve para --> ApiTask
+
+    style NLB fill:#f9f,stroke:#333,stroke-width:2px
+    style NginxContainer fill:#bbf,stroke:#333,stroke-width:2px
+    style WAF fill:#f00,stroke:#333,stroke-width:2px
 ```
 
-### Tecnologias Utilizadas
+### Fluxo de Requisição
 
--   **AWS:**
-    -   **ECS (Elastic Container Service) com Fargate:** Orquestração de contêineres.
-    -   **ECR (Elastic Container Registry):** Repositório de imagens Docker.
-    -   **VPC (Virtual Private Cloud):** Rede isolada para os recursos.
-    -   **Application Load Balancer (ALB):** Distribuição de tráfego.
-    -   **CloudWatch:** Monitoramento e logs.
-    -   **WAF (Web Application Firewall):** Segurança contra ataques web.
--   **Infraestrutura como Código (IaC):**
-    -   **Terraform:** Ferramenta para provisionar e gerenciar a infraestrutura.
--   **Contêineres:**
-    -   **Docker:** Criação e gerenciamento de contêineres.
-    -   **Nginx:** Utilizado como proxy reverso ou web server dentro de um contêiner.
+1.  **Conexão do Cliente:** O cliente, de posse de um certificado digital válido, inicia uma conexão TLS com o **Network Load Balancer (NLB)** na porta 443.
+2.  **TCP Passthrough:** O NLB opera na camada 4 (transporte) e não inspeciona o tráfego TLS. Ele simplesmente encaminha os pacotes TCP para uma das tarefas do serviço Nginx que estão na rede privada.
+3.  **Terminação mTLS no Nginx:** O contêiner Nginx recebe o tráfego. Ele está configurado para realizar o handshake mTLS, validando o certificado do cliente contra uma CA (Certificate Authority) confiável.
+4.  **Validação e Proxy:**
+    -   Se o certificado do cliente for válido (`$ssl_client_verify = "SUCCESS"`), o Nginx atua como proxy reverso, encaminhando a requisição HTTP para o serviço da API.
+    -   Se o certificado for inválido ou ausente, o Nginx retorna um código `403 Forbidden`, bloqueando o acesso.
+5.  **Service Discovery:** O Nginx utiliza o **AWS Cloud Map (Service Discovery)** para resolver o endereço IP interno e atual das tarefas da API (`api.minha-api.local`), garantindo uma comunicação resiliente.
+6.  **Processamento na API:** A tarefa da API recebe a requisição, processa e retorna a resposta através do mesmo fluxo.
+
+### Componentes Principais
+
+-   **AWS ECS com Fargate:** Orquestração de contêineres serverless, eliminando a necessidade de gerenciar instâncias EC2.
+-   **Network Load Balancer (NLB):** Alta performance para tráfego TCP, ideal para TCP passthrough, preservando o handshake TLS de ponta a ponta até o gateway.
+-   **Nginx Gateway:** Contêiner Nginx atuando como API Gateway, responsável pela terminação mTLS e roteamento.
+-   **Amazon ECR:** Repositório privado e seguro para as imagens Docker.
+-   **VPC e Sub-redes:** Ambiente de rede isolado com sub-redes públicas para o NLB e privadas para os contêineres, restringindo o acesso direto.
+-   **AWS Cloud Map:** Implementa o Service Discovery para comunicação interna entre os serviços.
+-   **CloudWatch:** Centraliza logs, métricas e dashboards para observabilidade.
 
 ---
 
