@@ -48,8 +48,8 @@ graph TD
     subgraph "AWS Cloud"
         A --> B{Application Load Balancer};
         B --> C{ECS Service};
-        C --> D[Task 1 (Contêiner)];
-        C --> E[Task 2 (Contêiner)];
+        C --> D[Task 1 (Container)];
+        C --> E[Task 2 (Container)];
         subgraph "ECR"
             F[Imagem Docker]
         end
